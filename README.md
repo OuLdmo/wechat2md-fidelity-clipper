@@ -1,12 +1,30 @@
 # WeChat Fidelity Clipper
 
+> **v0.4.0 双输出模式（可安装测试版）**。高保真 HTML 侧重颜色、字体与布局；纯净 Markdown 专为思源 / Obsidian 等可编辑笔记设计。模拟测试已通过，但真实公众号站点全量验收尚未完成，**不保证 100% 像素或信息无损**。
+
+## v0.4.0 新增功能
+
+| 模式 | 核心输出 | 说明 |
+| --- | --- | --- |
+| **高保真 HTML** | `article-fidelity.html` | 保留布局、颜色、合并表格和原始图片；支持单文件内嵌图片或 ZIP 离线引用 |
+| **纯净 Markdown** | `article.md` | 清除微信网页容器和属性，保留语义 Markdown；复杂表格用带合并注记的 GFM 表格表达 |
+
+**新增「复制为思源兼容 Markdown」**：无需将整段微信 HTML 粘贴到笔记；复制纯净 GFM 文本，去掉 YAML frontmatter，远程图片为原链接，图片本地化则使用 ZIP。双栏同时展示高保真 HTML 与纯净 Markdown，便于复核。
+
+**ZIP 同时包含** `article.md`、`article-rich.md`（兼容旧版）、`article-fidelity.html`、`source/article.html`、`assets/` 和校验报告。仍然支持 `.md` 图片外链、内嵌图片、ZIP 和 PDF 打印。
+
+**安装：** 从 [仓库 downloads](./downloads/) 下载 v0.4.0 ZIP，解压后打开 Chrome `chrome://extensions/` → 开启开发者模式 → 加载已解压扩展程序。见 [安装指南](./INSTALL.md)、[版本说明](./RELEASE_NOTES.md) 和 [测试报告](./TEST_REPORT.md)。
+
+---
+
+
 **微信公众号文章 → Markdown / PDF 的 Chrome、Edge 剪藏插件。** 支持一键导出外链 Markdown、Data URI 内嵌图片 Markdown、包含离线图片的 ZIP，以及浏览器打印 PDF；提供可选公式 OCR、复杂 HTML 排版回退、双栏预览和多格式复制。
 
-> **版本：v0.3.0（功能候选版）**。模拟公众号页面测试已执行，真实公众号站点的全量兼容性与“100% 无损”没有得到验证。不可将合成 DOM 测试视为真实线上文章端到端测试。
+> **版本：v0.4.0（可安装测试版）**。模拟公众号页面测试已执行，真实公众号站点的全量兼容性与“100% 无损”没有得到验证。不可将合成 DOM 测试视为真实线上文章端到端测试。
 
 ## 快速开始
 
-1. 从 [项目安装包](downloads/wechat-fidelity-clipper-v0.3.0.zip) 下载 `wechat-fidelity-clipper-v0.3.0.zip` 并解压，或直接克隆本仓库。
+1. 从 [Releases](./downloads/) 下载 `wechat-fidelity-clipper-v0.4.0.zip` 并解压，或直接克隆本仓库。
 2. Chrome 打开 `chrome://extensions/`（Edge 使用 `edge://extensions/`）。
 3. 启用开发者模式，选择“加载已解压的扩展程序”，选择含 `manifest.json` 的 `wechat-fidelity-clipper` 文件夹。
 4. 在插件侧边栏粘贴公众号文章 URL，选择 ZIP / Markdown / PDF 等格式并导出。
@@ -36,7 +54,7 @@ Chrome / Edge 的 Manifest V3 浏览器扩展，用户粘贴微信公众号文�
 
 ## 安装（无需构建）
 
-1. 解压 `wechat-fidelity-clipper-v0.3.0.zip`。
+1. 解压 `wechat-fidelity-clipper-v0.4.0.zip`。
 2. Chrome 地址栏进入 `chrome://extensions/`；Edge 进入 `edge://extensions/`。
 3. 开启「开发者模式」，点击「加载已解压的扩展程序」，选择包含 `manifest.json` 的文件夹。
 4. 在浏览器中打开**能够正常访问**的 `https://mp.weixin.qq.com/s/...`，点击插件图标打开侧边栏；也可以直接粘贴链接。
@@ -153,7 +171,3 @@ python tests/live_wechat_check.py "https://mp.weixin.qq.com/s/knx5TvCehRpOACtYuG
 ## 第三方依赖与隐私
 
 扩展运行时使用随包的 JSZip（见 `vendor/JSZIP-LICENSE.md`），不需要 npm、远程脚本或自有云端服务。可选 Mathpix 会向用户授权的第三方传输公式图片；其费用和隐私条款由服务商负责。仅处理用户自己能够正常访问并依法保存的文章。
-
-## GitHub 发布附件
-
-本仓库提供 [v0.3.0 离线安装 ZIP](downloads/wechat-fidelity-clipper-v0.3.0.zip)。Release 标签尚未由 GitHub 自动创建。

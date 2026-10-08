@@ -42,7 +42,7 @@ function archiveFilename(input){
   return safe||'公众号文章';
 }
 function buildHtml(root,title) {
-  const page=new DOMParser().parseFromString('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title></title><style>body{max-width:800px;margin:40px auto;padding:0 20px;color:#222;font:16px/1.8 system-ui,sans-serif;overflow-wrap:anywhere}img,svg,video{max-width:100%;height:auto}table{border-collapse:collapse;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:6px 10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}blockquote{border-left:3px solid #aaa;padding-left:16px;color:#666}</style></head><body></body></html>','text/html');
+  const page=new DOMParser().parseFromString('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title></title><style>body{max-width:780px;margin:30px auto;padding:0 18px;color:#222;font:16px/1.75 -apple-system,BlinkMacSystemFont,"Microsoft YaHei",sans-serif;overflow-wrap:anywhere}img,svg,video{max-width:100%;height:auto}table{border-collapse:collapse;max-width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{overflow-wrap:anywhere}</style></head><body></body></html>','text/html');
   page.title=title;
   const copy=page.importNode(root,true);
   for(const link of copy.querySelectorAll('a[href]')) {
@@ -93,7 +93,7 @@ async function retrieveAsset(asset, controller, maxBytes) {
 }
 
 function titleHeader(article){
-  const lines=['---',`title: ${yamlString(article.title)}`,`account: ${yamlString(article.account)}`,`author: ${yamlString(article.author)}`,`published: ${yamlString(article.published)}`,`source: ${yamlString(article.url)}`,`clipped_at: ${yamlString(article.extractedAt)}`,`converter: ${yamlString('WeChat Fidelity Clipper v0.3.0')}`,'---',''];
+  const lines=['---',`title: ${yamlString(article.title)}`,`account: ${yamlString(article.account)}`,`author: ${yamlString(article.author)}`,`published: ${yamlString(article.published)}`,`source: ${yamlString(article.url)}`,`clipped_at: ${yamlString(article.extractedAt)}`,`converter: ${yamlString('WeChat Fidelity Clipper v0.4.0')}`,'---',''];
   return lines.join('\n');
 }
 function fileJson(obj){return JSON.stringify(obj,null,2)+'\n';}
@@ -216,6 +216,12 @@ export async function buildArchive(article,options={},progress=()=>{},controller
   for (const holder of rootHtml.querySelectorAll('[data-wfc-math]')) {
     const latex=holder.getAttribute('data-wfc-latex');
     const mml=holder.getAttribute('data-wfc-mathml');
+    const renderedMarkup=holder.getAttribute('data-wfc-original-math-html');
+    if(renderedMarkup){
+      const parsed=htmlToArticleDOM(`<div>${renderedMarkup}</div>`);
+      const renderedNode=parsed.firstElementChild?.firstElementChild;
+      if(renderedNode){holder.replaceWith(rootHtml.ownerDocument.importNode(renderedNode,true));continue;}
+    }
     if(latex) {
       const code=rootHtml.ownerDocument.createElement('code');
       code.textContent=(holder.getAttribute('data-wfc-display')==='block'?'[LaTeX] ':'')+latex;
@@ -230,7 +236,11 @@ export async function buildArchive(article,options={},progress=()=>{},controller
   const renderer=createRenderer(map,{...options,ocrMap});
   const rendered=renderer.render(root);
   issues.push(...rendered.issues);
-  const markdown=titleHeader(article)+`# ${article.title.replace(/[\r\n]/g,' ').replace(/([\\`*_[\]<>])/g,'\\$1')}\n\n`+rendered.markdown+'\n\n---\n\n'+`原文链接：${article.url}\n\n`+(options.html!==false?'[原文 HTML 排版快照](source/article.html)\n':'');
+  const header=titleHeader(article)+`# ${article.title.replace(/[\r\n]/g,' ').replace(/([\`*_[\]<>])/g,'\\$1')}\n\n`;
+  const markdown=header+rendered.markdown+'\n\n---\n\n'+`原文链接：${article.url}\n\n`+(options.html!==false?'[原文 HTML 排版快照](source/article.html)\n':'');
+  const cleanRender=createRenderer(map,{...options,html:false,outputMode:'clean',ocrMap}).render(root);
+  const cleanMarkdown=header+cleanRender.markdown+'\n\n---\n\n'+`原文链接：${article.url}\n`;
+  issues.push(...cleanRender.issues.map(x=>({...x,profile:'clean'})));
   // Conservative paragraph-level text coverage check (not semantic equivalence).
   const markdownPlain=normalizeText(markdown.replace(/\]\([^)]*\)/g,']').replace(/\\([\[\]`*_])/g,'$1'));
   const paragraphs=[...root.querySelectorAll('p')].filter(p=>!p.querySelector('img,table,[data-wfc-math]') && normalizeText(p.textContent).length>=7);
@@ -241,9 +251,9 @@ export async function buildArchive(article,options={},progress=()=>{},controller
   const missed=imageRecords.filter(x=>x.status==='failed').length;
   const external=imageRecords.filter(x=>x.status==='external').length;
   const quality={
-    version:'0.3.0',imageMode:selectedMode,sourceUrl:article.url,articleTitle:article.title,archiveCreatedAt:new Date().toISOString(),
-    source:article.source,
-    exported:{markdownBytes:byteLength(markdown),archiveAssets:saved,failedAssets:missed,externalAssets:external,formulaOcrCandidates:mathCandidates.length,formulaOcrProduced:ocrResults.length,imagesEmitted:rendered.counters.images,linksRendered:rendered.counters.links,mathRendered:rendered.counters.math,mathmlFallbacks:rendered.counters.mathml,tables:rendered.counters.tables,complexTableHtmlFallbacks:rendered.counters.complexTables,complexCssLayouts:rendered.counters.complexLayouts,mediaLinkFallbacks:rendered.counters.media},
+    version:'0.4.0',imageMode:selectedMode,sourceUrl:article.url,articleTitle:article.title,archiveCreatedAt:new Date().toISOString(),
+    source:article.source,outputProfiles:['high-fidelity-html','clean-markdown'],
+    exported:{cleanMarkdownBytes:byteLength(cleanMarkdown),markdownBytes:byteLength(markdown),archiveAssets:saved,failedAssets:missed,externalAssets:external,formulaOcrCandidates:mathCandidates.length,formulaOcrProduced:ocrResults.length,imagesEmitted:rendered.counters.images,linksRendered:rendered.counters.links,mathRendered:rendered.counters.math,mathmlFallbacks:rendered.counters.mathml,tables:rendered.counters.tables,complexTableHtmlFallbacks:rendered.counters.complexTables,complexCssLayouts:rendered.counters.complexLayouts,mediaLinkFallbacks:rendered.counters.media},
     checks:{
       sourceLinkCount:article.source.links,
       paragraphTextCheck:{assessed:paragraphs.length,exactNormalizedMatches:paragraphs.length-lostParagraphs.length,reviewRequired:lostParagraphs.length},
@@ -270,15 +280,18 @@ export async function buildArchive(article,options={},progress=()=>{},controller
     zip.file('source/original-dom.html.txt',article.originalDom||'');
   }
   const sourcePreview=htmlSnapshot(rootHtml,article.title);
+  // The HTML entry at ZIP root uses portable paths relative to its own folder.
+  zip.file('article-fidelity.html',sourcePreview.replaceAll('../assets/','assets/'));
   // The raw source URL is always retained in manifest for audit.
-  zip.file('article.md',markdown);
-  zip.file('manifest.json',fileJson({version:'0.3.0',imageMode:selectedMode,article:{title:article.title,account:article.account,author:article.author,published:article.published,url:article.url,extractedAt:article.extractedAt},resources:records}));
+  zip.file('article.md',cleanMarkdown);
+  zip.file('article-rich.md',markdown);
+  zip.file('manifest.json',fileJson({version:'0.4.0',imageMode:selectedMode,article:{title:article.title,account:article.account,author:article.author,published:article.published,url:article.url,extractedAt:article.extractedAt},resources:records}));
   if(options.report!==false) zip.file('quality-report.json',fileJson(quality));
-  zip.file('README.txt',`WeChat Fidelity Clipper 归档\n\n主文件：article.md\n离线资源：assets/\nHTML 快照：source/article.html\n原始 DOM：source/original-dom.html.txt（请作为文本查看，不执行）\n质量报告：quality-report.json\n\n不能访问的图片将以在线 URL 留在 Markdown 中，并记录在 manifest.json 中。\n`);
+  zip.file('README.txt',`WeChat Fidelity Clipper 归档\n\n纯净笔记：article.md\n含 HTML 的原始兼容笔记：article-rich.md\n高保真网页：article-fidelity.html\n离线资源：assets/\nHTML 快照：source/article.html\n原始 DOM：source/original-dom.html.txt（请作为文本查看，不执行）\n质量报告：quality-report.json\n\n不能访问的图片将以在线 URL 留在 Markdown 中，并记录在 manifest.json 中。\n`);
   progress('生成 ZIP 压缩包',0.91);
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:5},streamFiles:true},metadata=>{
     progress(`正在压缩：${Math.round(metadata.percent||0)}%`,0.91+0.09*(metadata.percent||0)/100);
   });
   progress('归档完成',1);
-  return {blob,filename:archiveFilename(article.title)+'.zip',quality,markdown,sourcePreview,resourceManifest:records};
+  return {blob,filename:archiveFilename(article.title)+'.zip',quality,markdown,cleanMarkdown,sourcePreview,resourceManifest:records};
 }

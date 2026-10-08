@@ -6,7 +6,7 @@ import subprocess
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 m=json.loads((ROOT/'manifest.json').read_text())
 assert m['manifest_version']==3
-assert m['version']=='0.3.0'
+assert m['version']=='0.4.0'
 assert 'sidePanel' in m['permissions']
 assert 'downloads' in m['permissions']
 assert 'activeTab' in m['permissions']
@@ -29,4 +29,4 @@ for name in ['formats.js','print-store.js','capture.js','ocr.js','preview.js','a
     assert (ROOT/'src/lib'/name).is_file(),name
 assert (ROOT/'print.html').is_file()
 assert (ROOT/'src/print.js').is_file()
-print('PASS v0.3 manifest, sidepanel dependencies, offline script assets, Node JS syntax')
+print('PASS v0.4 manifest, sidepanel dependencies, offline script assets, Node JS syntax')

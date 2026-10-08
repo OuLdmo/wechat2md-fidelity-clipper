@@ -76,6 +76,7 @@
       if (!latex.trim() && !mathml) continue;
       const holder = document.createElement('span');
       holder.dataset.wfcMath = '1';
+      if (node.matches('.katex,math,mjx-container')) holder.setAttribute('data-wfc-original-math-html',node.outerHTML.slice(0,250000));
       if (latex.trim()) holder.dataset.wfcLatex = latex.trim();
       if (mathml) holder.dataset.wfcMathml = mathml;
       holder.dataset.wfcDisplay = (node.matches('script') && /mode=display/.test(node.type)) || node.closest('.katex-display,mjx-container[display="true"]') ? 'block' : 'inline';
@@ -151,6 +152,28 @@
       }
       visuals.push({id,captureId:captureId(orig),tag:orig.tagName,text:text.slice(0,200),style:target.getAttribute('style')});
     }
+    // Faithful HTML: copy a bounded subset of the *computed* presentation,
+    // including CSS rules applied by WeChat style sheets. Pure Markdown ignores
+    // all these attributes, so this never contaminates SiYuan/Obsidian output.
+    let styled=0;
+    const styleTags=new Set(['P','DIV','SECTION','SPAN','FIGURE','FIGCAPTION','TABLE','TH','TD','LI','UL','OL','BLOCKQUOTE','H1','H2','H3','H4','H5','H6','STRONG','EM']);
+    const props=['color','backgroundColor','fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','textAlign','textDecoration','borderTop','borderRight','borderBottom','borderLeft','borderRadius','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginBottom'];
+    for (const original of originalElements) {
+      if(styled>=3000) {warnings.push('原文节点过多，部分外部 CSS 无法完全捕获。');break;}
+      const target=originalToClone.get(original);
+      if(!target||!clone.contains(target)||!styleTags.has(original.tagName))continue;
+      const css=getComputedStyle(original);
+      const parent=original.parentElement?getComputedStyle(original.parentElement):null;
+      // Limit style expansion; preserve intrinsic/inherited values when actually different.
+      for (const prop of props) {
+        if(target.style[prop] || !css[prop])continue;
+        if(parent && css[prop]===parent[prop] && !['backgroundColor','borderLeft','borderRight','borderBottom','borderTop'].includes(prop))continue;
+        if(['backgroundColor','borderLeft','borderRight','borderBottom','borderTop'].includes(prop) && /^(?:rgba\(0, 0, 0, 0\)|transparent|none|0px none)/.test(css[prop]))continue;
+        target.style[prop]=css[prop];
+      }
+      styled++;
+    }
+    // Never inline third-party style sheets or executable page scripts.
     // Keep external URL targets and their fragment IDs.
     for (const a of clone.querySelectorAll('a[href]')) {
       const uri=absolute(a.getAttribute('href'));

@@ -93,6 +93,7 @@ window.__markdownExports={htmlToArticleDOM,createRenderer,yamlString,normalizeTe
             with zipfile.ZipFile(io.BytesIO(base64.b64decode(out['bytesBase64']))) as z:
                 names=set(z.namelist())
                 md=z.read('article.md').decode('utf-8')
+                rich=z.read('article-rich.md').decode('utf-8')
                 report=json.loads(z.read('quality-report.json'))
                 assets=json.loads(z.read('manifest.json'))['resources']
                 assert {'article.md','source/article.html','source/original-dom.html.txt','quality-report.json','manifest.json'}.issubset(names),names
@@ -101,7 +102,9 @@ window.__markdownExports={htmlToArticleDOM,createRenderer,yamlString,normalizeTe
                 assert '![波形图片](assets/images/img-' in md,md
                 assert '![天线模型](assets/figures/svg-' in md,md
                 assert '| 参数 | 值 |' in md,md
-                assert 'rowspan="2"' in md,md
+                assert 'rowspan="2"' in rich,rich
+                assert '合并2行×1列' in md,md
+                assert '<section' not in md and '<table' not in md
                 assert r'\[1\] 参考文献' in md,md
                 assert 'https://doi.org/10.1109/test' in md,md
                 assert 'important' not in md.lower()

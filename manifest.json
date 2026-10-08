@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WeChat Fidelity Clipper",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minimum_chrome_version": "116",
   "description": "微信文章一键导出 Markdown（外链、内嵌图片、ZIP）和打印 PDF，支持双栏预览与复制。",
   "permissions": [

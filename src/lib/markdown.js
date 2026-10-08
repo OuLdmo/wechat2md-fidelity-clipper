@@ -102,8 +102,8 @@ export function createRenderer(assetMap, options={}) {
     if (tag==='BR') return '  \n';
     if (tag==='WBR') return '';
     if (tag==='CODE') return '`'+(node.textContent||'').replace(/`/g,'``')+'`';
-    if (tag==='MATH') return node.outerHTML;
-    if (tag==='SUP'||tag==='SUB') return `<${tag.toLowerCase()}>${escapeText(plain(node))}</${tag.toLowerCase()}>`;
+    if (tag==='MATH') return options.outputMode==='clean'?'[MathML 公式：原文 HTML 归档保留]':node.outerHTML;
+    if (tag==='SUP'||tag==='SUB') return options.outputMode==='clean'?(tag==='SUP'?`^(${escapeText(plain(node))})`:`_(${escapeText(plain(node))})`):`<${tag.toLowerCase()}>${escapeText(plain(node))}</${tag.toLowerCase()}>`;
     const inside=Array.from(node.childNodes).map(inline).join('');
     const txt=inside.trim();
     if (['STRONG','B'].includes(tag)) return txt?`**${txt}**`:'';
@@ -138,6 +138,35 @@ export function createRenderer(assetMap, options={}) {
     const equalWidth=cells.length&&cells[0].length&&cells.every(row=>row.length===cells[0].length);
     if (merged||rich||!equalWidth) {
       counters.complexTables++;
+      if(options.outputMode==='clean'){
+        // Expand merged rows/columns into a rectangular GFM table. Original
+        // rowspan/colspan data remain explicit instead of being discarded.
+        const grid=[], occupied=new Map();let width=0;
+        for(let ri=0;ri<rows.length;ri++){
+          const row=[];let ci=0;
+          for(const cell of cells[ri]){
+            while(occupied.get(`${ri}:${ci}`)){row[ci]='↳';ci++;}
+            const rs=Math.min(100,Math.max(1,Number(cell.getAttribute('rowspan'))||1));
+            const cs=Math.min(100,Math.max(1,Number(cell.getAttribute('colspan'))||1));
+            const raw=Array.from(cell.childNodes).map(inline).join('').replace(/\n+/g,' / ').replace(/\|/g,'\\|').trim();
+            row[ci]=raw + ((rs>1||cs>1)?` (合并${rs}行×${cs}列)`:'');
+            for(let rr=ri;rr<ri+rs;rr++)for(let cc=ci;cc<ci+cs;cc++){
+              if(rr===ri && cc===ci)continue;
+              occupied.set(`${rr}:${cc}`,true);
+              if(rr===ri)row[cc]='↳';
+            }
+            ci+=cs;
+          }
+          while(occupied.get(`${ri}:${ci}`)){row[ci]='↳';ci++;}
+          width=Math.max(width,row.length);
+          grid.push(row);
+        }
+        width=Math.min(width,100);
+        const normalized=grid.map(row=>Array.from({length:width},(_,i)=>row[i]||''));
+        issues.push({level:'info',type:'table',message:'合并/复杂表格已展开为纯净 Markdown 表格；原始单元格合并关系保存在 HTML 归档。'});
+        const header=normalized[0]||[];
+        return [`| ${header.join(' | ')} |`, `| ${header.map(()=> '---').join(' | ')} |`,...normalized.slice(1).map(r=>`| ${r.join(' | ')} |`)].join('\n');
+      }
       issues.push({level:'info',type:'table',message:'复杂表格保留为 HTML，避免合并单元格或内容结构损失。'});
       return options.html===false? `[复杂表格：见 source/article.html]\n\n${plain(node)}`:node.outerHTML;
     }
@@ -207,7 +236,7 @@ export function createRenderer(assetMap, options={}) {
     }
     if (node.hasAttribute('data-wfc-canvas-failed')) {issues.push({level:'warning',type:'canvas',message:'无法读取 Canvas，已保留 DOM 快照。'});return '[Canvas 图：见原始 HTML 快照]';}
     const css=node.getAttribute('style')||'';
-    if(node.hasAttribute('data-wfc-layout-id') && options.html!==false) {
+    if(node.hasAttribute('data-wfc-layout-id') && options.html!==false && options.outputMode!=='clean') {
       counters.complexLayouts++;
       // Keep the actual HTML for flex/grid content. Its images have been rewritten
       // to local paths by archive.js, preserving the order and multi-column grouping.

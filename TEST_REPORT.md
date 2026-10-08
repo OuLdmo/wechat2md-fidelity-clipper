@@ -1,20 +1,23 @@
-# WeChat Fidelity Clipper v0.3.0 测试记录
+# WeChat Fidelity Clipper v0.4.0 — 测试报告
 
-测试环境：Linux 容器、Chromium（Playwright）、Node.js、Python、Pillow。测试使用合成公众号页面；真实链接仅用于格式及页面来源模拟。
+运行环境：Linux 容器、Chromium/Playwright、Python、Node.js。**真实公众号 URL 无法联网访问**：域名 `mp.weixin.qq.com` 在容器中 DNS 解析失败，Web 访问也返回错误。
 
-| 测试 | 结果 | 验证范围 |
+| 测试命令 | 结果 | 覆盖 |
 | --- | --- | --- |
-| `tests/test_static.py` | PASS | MV3 元数据、入口文件、Node.js 语法检查 |
-| `tests/test_conversion.py` | PASS | 提取、MD、ZIP、图片回退、HTML 安全处理 |
-| `tests/test_v02.py` | PASS | 原图截图、公式 OCR Mock、Mathpix Mock、MathML、SVG 和表格 |
-| `tests/test_companion.py` | PASS | 本地 OCR 接口 Mock 与来源限制 |
-| `tests/test_v03.py` | PASS | 四种导出内容、图片内嵌、纯文本、打印 HTML 和 PDF 渲染 |
-| `tests/test_v03_ui.py` | PASS | Chrome API Mock 下侧栏一键导出、预览切换、复制、重新导出 |
-| Chromium 测试 HTML → PDF | PASS | A4 文件、PNG/SVG 显示、表格、可复制文本；输出测试用 PDF |
-| 微信公众号真实外网访问 | BLOCKED | DNS 无法解析 `mp.weixin.qq.com`，**没有通过真实性验证** |
-| Chrome/Edge 实机扩展 UI | NOT RUN | 需要非托管浏览器环境和真实扩展安装 |
-| 真实 pix2tex/Mathpix 准确率 | NOT RUN | 只测了 Mock 接口，没有推断实际 OCR 精度 |
+| `python tests/test_static.py` | PASS | Manifest V3 v0.4.0、入口与 JS 语法 |
+| `python tests/test_conversion.py` | PASS | DOM、公式、图片、表格、失败回退、HTML 清理、ZIP |
+| `python tests/test_v02.py` | PASS | 截图、OCR Mock、MathML、SVG、复杂布局 |
+| `python tests/test_companion.py` | PASS | 本地 OCR API 模拟、非法来源拒绝 |
+| `python tests/test_v03.py` | PASS | Markdown 图片外链/内嵌、PDF 打印、富文本、离线 ZIP |
+| `python tests/test_v03_ui.py` | PASS | UI Mock：一键导出、思源复制、双模式选择、HTML 导出 |
+| `python tests/test_v04.py` | PASS | **纯净 Markdown 无复杂网页 HTML**；高保真 HTML 保留颜色/flex、本地图片；思源复制；模拟 URL |
+| 真实公众号 `https://mp.weixin.qq.com/s/knx5TvCehRpOACtYuG23QQ` | **BLOCKED** | DNS 无法解析；**未读取真实文章内容** |
+| Windows/Edge 安装扩展、真正思源粘贴 | NOT RUN | 需用户本机确认 |
+| 真实 pix2tex / Mathpix OCR 精度 | NOT RUN | 只验证接口和模拟返回 |
+| “100% 信息无损”认证 | **NOT CLAIMED** | 标准 Markdown 不具备全部 HTML/CSS 与动态媒体表达力 |
 
-实际测试生成 `tests/reports/v03-print-fixture.pdf` 与 `tests/reports/v03-panel-fixture.png`。其中截图使用 UI Mock，未加载扩展样式 CSS，不等同于安装后的最终视觉效果。
+### 策略与已知限制
 
-**版本判断**：v0.3.0 是安装与功能验证候选版。完整资源保存、HTML 快照及结构差异检测会降低信息损失，但不能证明对全部公众号网页真正 100% 无损，因此不标记为正式无损版。
+`article.md` 目标是**语义结构保留**，并不追求原页面颜色布局；`article-fidelity.html` 目标是**视觉/结构保留**，不保证跨域字体、外链媒体、JS 动画或复杂 CSS 100% 与原站一致。OCR 结果未经人工验证时作为候选，保留原公式图。
+
+真正的发布验收应在可访问微信的浏览器上进行多篇真实页面的资源哈希、内容覆盖、视觉截图及剪贴板粘贴验证。测试使用真实形态 URL + 合成微信页面 DOM 的隔离输入，**不冒充实站通过**。

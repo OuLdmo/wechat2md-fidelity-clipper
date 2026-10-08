@@ -1,22 +1,16 @@
-# WeChat Fidelity Clipper v0.3.0
+# WeChat Fidelity Clipper v0.4.0
 
-首个可安装测试的公开发行候选版（**非无损验证正式版**）。
+## 双输出模式 / Dual output profiles
 
-## 主要功能
+- **高保真 HTML**：保留文章 DOM、颜色、字体样式、复杂 flex/grid 布局及本地图片等；ZIP 内 `article-fidelity.html` 使用相对资源路径，单文件 HTML 导出可嵌入可访问图片。不可保证微信原生脚本、动态动画、所有字体、外链图片或跨域资源的像素级还原。
+- **纯净 Markdown**：ZIP 内 `article.md` 不输出微信特定容器、style/class/data-* 等网页排版属性。尽量保留标题、公式、链接、列表、图片与 GFM 表格。复杂表格展开并注明行/列合并，原始合并结构保留在 HTML 中。
+- 增加「复制为思源兼容 Markdown」，去除 YAML frontmatter，采用纯净 Markdown 与网页图片链接，方便直接粘贴进思源、Obsidian 等编辑器。
+- 独立 HTML 单文件下载 + 原有图片外链 `.md`、图片内嵌 `.md`、离线 ZIP 和 PDF 打印导出继续保留。
+- 高保真 HTML 增强从网页计算样式中提取文字颜色、背景色、字体等规则（有边界限制），并尽量保留 KaTeX 已渲染内容。
+- 回归测试增加双输出结构断言、HTML 图片显示、思源复制、界面切换和复杂表格语义检查。
 
-- 从公众号文章链接或当前标签页一键提取正文。
-- 导出本地图片 ZIP、外链图片 Markdown、Data URI 内嵌 Markdown 或 PDF 打印页面。
-- 支持公式语义提取、可选 pix2tex / Mathpix 识别与人工修订。
-- 支持 SVG、普通表格、复杂 HTML 表格与图文布局备份。
-- 提供原文与 Markdown 双栏预览，以及纯文本、Markdown、HTML 富文本复制。
-- 离线 ZIP 包含 `article.md`、资源文件夹、HTML 快照、资源清单和质量报告。
+## 重要限制
 
-## 测试与限制
+这是**可发布的测试版本**，并非能够证明“100% 信息零损失”的正式版本：纯 Markdown 的表达能力低于 HTML/CSS；动态元素、字体、Canvas、复杂公式及被访问控制阻挡的资源可能降级。ZIP 提供原始 DOM 文本备份、HTML、资产清单与异常报告。
 
-- 已进行了本地静态检查与基于**模拟公众号 DOM**的回归测试。
-- 当前环境未能访问 `mp.weixin.qq.com`，真实文章端到端测试待完成。
-- 公式 OCR 实际精度、浏览器实际安装权限、复杂交互排版仍需实测。
-- PDF 需通过 Chrome/Edge 打印界面操作，不是直接静默下载。
-- 无法保证所有公众号内容 100% 无损转换。请检查 `quality-report.json`。
-
-**安全注意：** 不要在 Issue、日志或截图中发布 Mathpix 密钥及其他凭据。
+本环境 `mp.weixin.qq.com` DNS 无法解析。对真实格式公众号 URL 的测试使用**模拟 DOM**；没有声称已打开真实文章或完成实站端到端验证。Chrome/Edge 扩展安装、思源笔记实际粘贴、数学 OCR 模型真实精度仍需要用户侧验收。

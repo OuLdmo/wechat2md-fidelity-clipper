@@ -32,10 +32,10 @@ function removeBrokenArchiveLink(md){
   return md.replace(/^\[原文 HTML 排版快照\]\(source\/article\.html\)\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trimEnd()+'\n';
 }
 export async function markdownVariant(output, mode='raw', {maxInlineBytes=65*1024*1024}={}) {
-  if(mode==='raw')return output.markdown;
+  if(mode==='raw')return output.cleanMarkdown||output.markdown;
   if(!['remote','inline'].includes(mode))throw new Error('未知 Markdown 导出模式');
   const zip=await zipFrom(output);
-  let md=output.markdown,bytesAdded=0,unavailable=[];
+  let md=output.cleanMarkdown||output.markdown,bytesAdded=0,unavailable=[];
   for(const r of output.resourceManifest){
     if(!r.file)continue;
     let target='';
@@ -142,4 +142,46 @@ export async function previewAssetData(output,maxBytes=15*1024*1024){
     data.set(r.file,`data:${mime};base64,${base64(bytes)}`);
   }
   return data;
+}
+
+/** Standalone faithful HTML export; embeds archived media and disables active scripts. */
+export async function highFidelityHtml(output,{inlineAssets=true,maxInlineBytes=80*1024*1024}={}) {
+  const zip=await zipFrom(output);
+  const html=await zip.file('article-fidelity.html')?.async('string');
+  if(!html)throw Error('归档中缺少 article-fidelity.html');
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  if(inlineAssets){
+    let sum=0;const data=new Map();
+    for(const r of output.resourceManifest){
+      if(!r.file)continue;
+      const entry=zip.file(r.file);if(!entry)continue;
+      const bytes=await entry.async('uint8array');
+      sum+=bytes.length;
+      if(sum>maxInlineBytes)throw Error('高保真 HTML 内嵌资源超过容量限制，请改用离线 ZIP 归档。');
+      const mime=dataMime(r.mime)?r.mime:guessMime(r.file);if(!mime)continue;
+      data.set(r.file,`data:${mime};base64,${base64(bytes)}`);
+    }
+    for(const node of doc.querySelectorAll('img[src]')){
+      const src=node.getAttribute('src');if(data.has(src))node.setAttribute('src',data.get(src));
+    }
+    for(const node of doc.querySelectorAll('[style]')){
+      let style=node.getAttribute('style')||'';
+      for(const [from,value] of data)style=style.replaceAll(from,value);
+      node.setAttribute('style',style);
+    }
+  }
+  for(const node of doc.querySelectorAll('script,iframe,object,embed,form'))node.remove();
+  const csp=doc.createElement('meta');csp.httpEquiv='Content-Security-Policy';
+  csp.content="default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline'; font-src data:";
+  doc.head.prepend(csp);
+  return '<!doctype html>\n'+doc.documentElement.outerHTML;
+}
+
+/** SiYuan copy payload: pure GFM, without WeChat HTML wrappers / frontmatter. */
+export async function siyuanCompatibleMarkdown(output) {
+  let md=await markdownVariant(output,'remote');
+  md=md.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,'');
+  md=md.replace(/^\[原文 HTML 排版快照\]\([^\n]+\)[ \t]*$/gm,'');
+  // Formula/technical fenced code blocks are left intact (not treated as HTML).
+  return md.replace(/\n{3,}/g,'\n\n').trim()+'\n';
 }

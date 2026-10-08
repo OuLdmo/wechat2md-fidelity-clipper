@@ -55,7 +55,7 @@ def inject(page):
     archive=archive.replace('export async function buildArchive','async function buildArchive')+'\nwindow.buildArchive=buildArchive;'
     page.add_script_tag(content=archive)
     extra=(ROOT/'src/lib/formats.js').read_text().replace('export async function ','async function ').replace('export function ','function ')
-    extra+='\nwindow.WFCFormats={markdownVariant,articlePlainText,printableHtml,previewAssetData};'
+    extra+='\nwindow.WFCFormats={markdownVariant,articlePlainText,printableHtml,previewAssetData,highFidelityHtml,siyuanCompatibleMarkdown};'
     page.add_script_tag(content=extra)
     return payload
 

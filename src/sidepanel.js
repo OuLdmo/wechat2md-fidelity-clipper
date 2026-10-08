@@ -1,7 +1,7 @@
 import {buildArchive} from './lib/archive.js';
 import {captureNode} from './lib/capture.js';
 import {markdownPreview} from './lib/preview.js';
-import {markdownVariant,articlePlainText,printableHtml,previewAssetData} from './lib/formats.js';
+import {markdownVariant,articlePlainText,printableHtml,previewAssetData,highFidelityHtml,siyuanCompatibleMarkdown} from './lib/formats.js';
 import {savePrintDocument} from './lib/print-store.js';
 
 const $=id=>document.getElementById(id);
@@ -22,6 +22,7 @@ function setBusy(value){
 function getOptions(){
   const opts=Object.fromEntries(['images','math','html','report'].map(k=>[k,$(k).checked]));
   opts.exportMode=document.querySelector('input[name="exportMode"]:checked').value;
+  opts.outputProfile=document.querySelector('input[name="outputProfile"]:checked').value;
   opts.ocrScope=$('ocrScope').value;
   opts.imageMode=document.querySelector('input[name="imageMode"]:checked').value;
   opts.ocr={engine:$('ocrEngine').value,appId:$('mathpixId').value.trim(),appKey:$('mathpixKey').value.trim()};
@@ -43,9 +44,9 @@ function safePreviewHtml(output) {
 async function showCompare(article,output) {
   $('compare').classList.remove('hidden');
   $('sourceFrame').srcdoc=safePreviewHtml(output);
-  $('markdownPreview').textContent=output.markdown;
+  $('markdownPreview').textContent=output.cleanMarkdown||output.markdown;
   const localData=await previewAssetData(output).catch(()=>new Map());
-  $('markdownFrame').srcdoc=markdownPreview(output.markdown,output.resourceManifest,localData);
+  $('markdownFrame').srcdoc=markdownPreview(output.cleanMarkdown||output.markdown,output.resourceManifest,localData);
   const check=output.quality.checks.paragraphTextCheck;
   $('compareStats').textContent=`正文核验：${check.exactNormalizedMatches}/${check.assessed} 段匹配；资源 ${output.quality.exported.archiveAssets} 已保存，${output.quality.exported.failedAssets} 失败；视觉差异需人工核验。`;
   $('diffIssues').replaceChildren();
@@ -172,6 +173,11 @@ async function exportResult(output,mode){
     await saveDownload(output.blob,output.filename);
     return `ZIP 归档已提交下载：${output.filename}`;
   }
+  if(mode==='html'){
+    const html=await highFidelityHtml(output);
+    await saveDownload(new Blob([html],{type:'text/html;charset=utf-8'}),`${base}-高保真.html`);
+    return '高保真 HTML 已提交下载（网页颜色、布局尽量保留）';
+  }
   if(mode==='link'||mode==='inline'){
     const md=await markdownVariant(output,mode==='link'?'remote':'inline');
     await saveDownload(new Blob([md],{type:'text/markdown;charset=utf-8'}),`${base}${mode==='inline'?'-内嵌图片':''}.md`);
@@ -215,7 +221,7 @@ async function convert(){
       if(!granted) throw Error('没有 OCR 服务访问权限；可以改为不开启 OCR 继续归档。');
     }
     // Never store OCR keys; these only live in the current side-panel session.
-    await chrome.storage.local.set({lastUrl:url,options:{images:options.images,math:options.math,html:options.html,report:options.report,imageMode:options.imageMode,exportMode:options.exportMode,ocrEngine:options.ocr.engine,ocrScope:options.ocrScope}});
+    await chrome.storage.local.set({lastUrl:url,options:{images:options.images,math:options.math,html:options.html,report:options.report,imageMode:options.imageMode,exportMode:options.exportMode,outputProfile:options.outputProfile,ocrEngine:options.ocr.engine,ocrScope:options.ocrScope}});
     const tabId=await getOrOpenArticleTab(url);
     message('正在分析网页 DOM、图片、公式与引用…',.06);
     const article=await extractArticle(tabId);
@@ -267,6 +273,9 @@ async function initialize(){
     for(const [key,value] of Object.entries(stored.options||{})) if(['images','math','html','report'].includes(key)&&$(key)) $(key).checked=!!value;
     const chosen=document.querySelector(`input[name="imageMode"][value="${stored.options?.imageMode||'local'}"]`);
     if(chosen) chosen.checked=true;
+    const outputProfile=document.querySelector(`input[name="outputProfile"][value="${stored.options?.outputProfile||'clean'}"]`);
+    if(outputProfile)outputProfile.checked=true;
+    updateProfileHelp();
     const exportRadio=document.querySelector(`input[name="exportMode"][value="${stored.options?.exportMode||'zip'}"]`);
     if(exportRadio)exportRadio.checked=true;
     $('ocrEngine').value=stored.options?.ocrEngine||'off';
@@ -304,7 +313,7 @@ $('toggleMarkdown').addEventListener('click',()=>{
   $('toggleMarkdown').textContent=showSource?'排版预览':'查看源码';
 });
 
-for(const [button,mode] of [['exportLink','link'],['exportInline','inline'],['exportZip','zip'],['exportPdf','pdf']]){
+for(const [button,mode] of [['exportHtml','html'],['exportLink','link'],['exportInline','inline'],['exportZip','zip'],['exportPdf','pdf']]){
   $(button).addEventListener('click',async()=>{
     if(busy||!lastOutput){message('请先转换一篇文章');return;}
     try{message('正在生成另一种导出格式…');message(await exportResult(lastOutput,mode),1);}
@@ -312,7 +321,7 @@ for(const [button,mode] of [['exportLink','link'],['exportInline','inline'],['ex
   });
 }
 $('copyText').addEventListener('click',()=>copyWithFeedback(()=>writeClipboard(articlePlainText(lastOutput)),'纯文本正文'));
-$('copyMarkdown').addEventListener('click',()=>copyWithFeedback(()=>writeClipboard(lastOutput.markdown),'Markdown 原格式（ZIP 本地路径）'));
+$('copyMarkdown').addEventListener('click',()=>copyWithFeedback(()=>writeClipboard(lastOutput.cleanMarkdown||lastOutput.markdown),'纯净 Markdown（ZIP 本地路径）'));
 $('copyMarkdownRemote').addEventListener('click',()=>copyWithFeedback(async()=>writeClipboard(await markdownVariant(lastOutput,'remote')),'独立 Markdown（图片外链或 SVG 内嵌）'));
 $('copyMarkdownInline').addEventListener('click',()=>copyWithFeedback(async()=>writeClipboard(await markdownVariant(lastOutput,'inline')),'独立 Markdown（图片 Data URI 内嵌）'));
 $('copyRich').addEventListener('click',()=>copyWithFeedback(async()=>{
@@ -321,3 +330,25 @@ $('copyRich').addEventListener('click',()=>copyWithFeedback(async()=>{
   const text=articlePlainText(lastOutput);
   await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]);
 },'富文本（含 HTML 与纯文本）'));
+
+function updateProfileHelp(){
+  const profile=document.querySelector('input[name="outputProfile"]:checked')?.value||'clean';
+  $('profileHelp').textContent=profile==='fidelity'
+    ?'高保真 HTML：保留网页颜色与复杂布局。ZIP 同时包含原始 HTML 和纯净 Markdown。'
+    :'纯净 Markdown：不使用微信的复杂 HTML 容器，优先结构化标题、表格与图片。';
+}
+for(const control of document.querySelectorAll('input[name="outputProfile"]')){
+  control.addEventListener('change',()=>{
+    const profile=document.querySelector('input[name="outputProfile"]:checked')?.value;
+    const mode=profile==='fidelity'?'html':'zip';
+    const target=document.querySelector(`input[name="exportMode"][value="${mode}"]`);
+    if(target)target.checked=true;
+    updateProfileHelp();
+  });
+}
+for(const control of document.querySelectorAll('input[name="exportMode"]')){
+  control.addEventListener('change',()=>{
+    if(control.checked){const p=document.querySelector(`input[name="outputProfile"][value="${control.value==='html'?'fidelity':'clean'}"]`);if(p)p.checked=true;updateProfileHelp();}
+  });
+}
+$('copySiYuan').addEventListener('click',()=>copyWithFeedback(async()=>writeClipboard(await siyuanCompatibleMarkdown(lastOutput)),'思源兼容 Markdown（无微信 HTML 容器、图片保留链接）'));

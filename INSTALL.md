@@ -1,25 +1,26 @@
-# v0.3.0 安装及实际文章验收步骤
+# WeChat Fidelity Clipper v0.4.0 安装与验收
 
-1. 解压 ZIP，进入含 `manifest.json` 的插件文件夹。
-2. Chrome 输入 `chrome://extensions/`（Edge：`edge://extensions/`），启用开发者模式。
-3. 点击「加载已解压的扩展程序」，选择该文件夹。
-4. 在浏览器中访问自己可正常阅读的公众号文章，例如测试格式 `https://mp.weixin.qq.com/s/knx5TvCehRpOACtYuG23QQ`；注意文章可能下架、登录限制或网络阻断。
-5. 点击扩展图标或侧边栏，使用「当前页」按钮填 URL。
-6. 依次测试导出格式：
-   - **离线 ZIP**：解压后用 Typora / Obsidian 打开 `article.md`，核查全部图片、原始引用、合并表格及数学公式；查看 `quality-report.json`。
-   - **图片外链 .md**：检查图片地址为微信源链接；关闭网络重启显示不完整属于该模式的预期限制。
-   - **内嵌图片 .md**：检查 Markdown 中有 `data:image/...;base64`，再在目标笔记软件中确认能否渲染。
-   - **PDF**：将弹出的离线打印页面滚动查看，点击“打印 / 保存为 PDF”，目标选择「另存为 PDF」。
-7. 在双栏预览上方依次点击复制纯文本、复制 Markdown 原格式、复制可粘贴 Markdown、复制内嵌 Markdown、复制富文本，将结果粘贴进自己的软件。
-8. 若配置了 OCR，对照原公式图片修改误识别的 LaTeX，应用人工修订，重新导出。
+## 安装（Chrome / Edge 116+）
 
-## 真正的正式版验收条件（尚未达到）
+1. 下载 `wechat-fidelity-clipper-v0.4.0.zip` 并解压。
+2. 在 Chrome 打开 `chrome://extensions/`（Edge 为 `edge://extensions/`）。
+3. 打开开发者模式 → 加载已解压的扩展程序 → 选择包含 `manifest.json` 的目录。
+4. 打开可正常访问的公众号文章，点击扩展图标，粘贴 `https://mp.weixin.qq.com/s/...` 链接。
+5. 在「内容输出模式」中选择 **高保真 HTML** 或 **纯净 Markdown**。选择对应一键导出格式并转换。
+6. 完成转换后可在双栏查看保留版式的 HTML 与纯净 Markdown 的差异；点击「复制为思源兼容 Markdown」后直接粘贴到思源。
 
-- [ ] 在至少 30–50 篇可以真实访问的不同类型公众号文章上完成完整导出回归测试。
-- [ ] 在 Windows Chrome/Edge 中验证权限、图片 CDN、第三方域名授权以及大图截图。
-- [ ] 对 PDF 进行全文本检索、图片完整性、分页、合并表格和公式检查。
-- [ ] 在至少 Obsidian、Typora 等目标 Markdown 阅读器确认图片外链、相对路径和 Data URI 兼容性。
-- [ ] 完成使用真实 pix2tex/Mathpix 引擎的准确率与误识别实验。
-- [ ] 无静默丢失：所有已检测出的无法归档对象都应在报告中记录；但任何转换器都不能保证自动检测到所有源网页信息。
+## 输出
 
-当前版本供安装与实验；请勿将合成测试结果当作真实公众号网站的通过证明。
+- `article-fidelity.html`：高保真 HTML 归档，ZIP 中的本地图片使用 `assets/` 相对路径。
+- `article.md`：纯净 Markdown，适合思源、Obsidian、Typora。
+- `article-rich.md`：保留复杂 HTML 的旧版兼容内容（不适合思源纯净粘贴）。
+- `source/article.html`：归档快照；`source/original-dom.html.txt`：非执行型原始 DOM 证据。
+- `assets/`、`manifest.json`、`quality-report.json`：图片资源、资源清单和质量记录。
+
+单文件 HTML 会将已下载图片用 data: URI 嵌入；资源不可下载时仍保留原链接并记录失败。图片外链 Markdown 要求联网；内嵌图片 Markdown 可能不被部分编辑器支持，建议用 ZIP 将图片本地化。
+
+## 验收建议
+
+在 Windows 本地 Chrome/Edge 选取至少 20 篇可合法访问文章，覆盖 KaTeX、MathML、图片公式、flex/grid、背景图、合并单元格、SVG、Canvas、GIF、长文、引用等。逐篇检查质量报告中的图片与文本覆盖、Markdown 中的公式/表格语义，以及两栏视觉差异。**模拟测试通过并不能证明真实文章完全无损。**
+
+若需要 OCR，可选安装本地 `companion/` 中的 pix2tex 服务或配置 Mathpix API。云端 OCR 会上传所选公式图片，谨慎处理敏感内容。
