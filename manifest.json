@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "WeChat Fidelity Clipper",
+  "version": "0.3.0",
+  "minimum_chrome_version": "116",
+  "description": "微信文章一键导出 Markdown（外链、内嵌图片、ZIP）和打印 PDF，支持双栏预览与复制。",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "activeTab",
+    "storage",
+    "downloads",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://mp.weixin.qq.com/*",
+    "https://mmbiz.qpic.cn/*",
+    "https://mmbiz.qlogo.cn/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "打开 WeChat Fidelity Clipper"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

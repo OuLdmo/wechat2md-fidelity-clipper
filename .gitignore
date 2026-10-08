@@ -1,0 +1,30 @@
+# Python caches and local runtime
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Editors, OS and temporary state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+
+# Distribution: publish as GitHub Release asset, not Git source
+release-assets/
+dist/
+build/
+*.crx
+*.pem
+
+# Local verification outputs
+tests/reports/live-*/
+tests/reports/*-local.*

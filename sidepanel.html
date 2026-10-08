@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'">
+  <title>WeChat Fidelity Clipper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <header><div class="logo">W<span>F</span></div><div><h1>WeChat Fidelity Clipper</h1><p>公众号文章 · 高保真 Markdown · 双栏校验</p></div></header>
+    <label for="url">公众号文章 URL</label>
+    <div class="url-row"><input id="url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="url"><button id="useTab" class="secondary" type="button" title="读取当前标签页">当前页</button></div>
+    <fieldset class="export-fieldset"><legend>一键导出格式</legend>
+      <label class="check"><input type="radio" name="exportMode" value="zip" checked><span><strong>离线归档 ZIP</strong><small>article.md + 图片资源 + HTML 快照 + 检查报告</small></span></label>
+      <label class="check"><input type="radio" name="exportMode" value="link"><span><strong>Markdown · 图片链接</strong><small>独立 .md，图片通过原始 URL 加载</small></span></label>
+      <label class="check"><input type="radio" name="exportMode" value="inline"><span><strong>Markdown · 内嵌图片</strong><small>单个 .md，图片使用 Data URI，部分阅读器可能不支持</small></span></label>
+      <label class="check"><input type="radio" name="exportMode" value="pdf"><span><strong>PDF · 高保真打印</strong><small>生成离线打印预览，在 Chrome 中保存为 PDF</small></span></label>
+    </fieldset>
+    <fieldset><legend>ZIP 归档时的图片保存模式</legend>
+      <label class="check"><input type="radio" name="imageMode" value="local" checked>原始图片下载至 ZIP；失败时保留原链接</label>
+      <label class="check"><input type="radio" name="imageMode" value="remote">原有图片 URL（便于轻量阅读，离线不完整）</label>
+      <label class="check"><input type="radio" name="imageMode" value="screenshot">对页面可见图片截图，存入 assets/（部分大图可能裁切）</label>
+    </fieldset>
+    <fieldset><legend>公式图片 OCR（可选）</legend>
+      <label for="ocrEngine">OCR 引擎</label>
+      <select id="ocrEngine"><option value="off">不开启 OCR（仍保留原图）</option><option value="local">本地 pix2tex（127.0.0.1:8765）</option><option value="mathpix">Mathpix API（图片会上传至服务商）</option></select>
+      <label for="ocrScope">OCR 图片范围</label><select id="ocrScope"><option value="marked">仅公式特征图片（默认）</option><option value="all">全部正文图片（可能较慢、产生费用）</option></select>
+      <div id="mathpixFields" class="hidden credentials"><label for="mathpixId">Mathpix app_id（不保存）</label><input id="mathpixId" autocomplete="off" placeholder="app_id"><label for="mathpixKey">Mathpix app_key（不保存）</label><input type="password" id="mathpixKey" autocomplete="off" placeholder="app_key"></div>
+      <p class="hint">仅对明确标识为公式的图片自动 OCR。候选 LaTeX 将标记“待复核”，不替换原图。</p>
+    </fieldset>
+    <fieldset><legend>归档选项</legend>
+      <label class="check"><input id="images" type="checkbox" checked>下载图片与 SVG 原始资源</label>
+      <label class="check"><input id="math" type="checkbox" checked>保留 LaTeX / MathML / 公式原图</label>
+      <label class="check"><input id="html" type="checkbox" checked>保留复杂表格和 HTML 快照</label>
+      <label class="check"><input id="report" type="checkbox" checked>输出详细完整性检查报告</label>
+    </fieldset>
+    <button id="convert" class="primary" type="button">一键转换并导出</button>
+    <button id="cancel" class="secondary hidden" type="button">取消当前任务</button>
+    <button id="grantOrigins" class="secondary hidden" type="button" style="width:100%;margin-top:9px">授权第三方图片域名（可选）</button>
+    <section class="progress" aria-live="polite"><div class="progress-track"><div id="bar"></div></div><div id="status">准备就绪</div></section>
+    <section id="compare" class="compare hidden">
+      <h2>原文与 Markdown 双栏对照</h2>
+      <div class="copy-toolbar"><button type="button" id="copyText" class="secondary">复制纯文本</button><button type="button" id="copyMarkdown" class="secondary">复制 Markdown 原格式</button><button type="button" id="copyMarkdownRemote" class="secondary">复制可粘贴 Markdown（图片外链）</button><button type="button" id="copyMarkdownInline" class="secondary">复制 Markdown（图片内嵌）</button><button type="button" id="copyRich" class="secondary">复制富文本</button></div>
+      <p id="compareStats" class="hint"></p>
+      <div class="compare-grid"><div><h3>原文 HTML 排版快照</h3><iframe id="sourceFrame" sandbox="" referrerpolicy="no-referrer" title="原文安全快照"></iframe></div><div><h3>生成的 Markdown <button id="toggleMarkdown" type="button" class="secondary">查看源码</button></h3><iframe id="markdownFrame" sandbox="" referrerpolicy="no-referrer" title="Markdown 排版预览"></iframe><pre id="markdownPreview" class="hidden"></pre></div></div>
+      <h3>文字与结构差异</h3><ul id="diffIssues"></ul>
+      <h3>公式 OCR 人工复核</h3><div id="ocrReview"></div>
+      <button id="exportRevised" type="button" class="secondary" style="width:100%;margin-top:10px">应用人工修订并按当前模式重新导出</button>
+      <div class="secondary-export"><button type="button" id="exportLink" class="secondary">另存外链 .md</button><button type="button" id="exportInline" class="secondary">另存内嵌 .md</button><button type="button" id="exportZip" class="secondary">另存 ZIP</button><button type="button" id="exportPdf" class="secondary">PDF 预览</button></div>
+    </section>
+    <section id="summary" class="summary hidden"><h2>转换结果</h2><dl id="stats"></dl><h3>异常及回退记录</h3><ul id="issues"></ul></section>
+    <details><summary>转换说明与限制</summary><p>只处理用户能够正常访问的公众号文章，不绕过登录、验证或访问限制。图片下载失败时会保留原 URL 并在报告中标注。可选的本地 pix2tex / Mathpix 只生成未经核验的公式候选，原图保留。HTML 快照能最大限度保留结构，但动态特效、网页字体和截图裁切仍可能产生差异。</p></details>
+    <footer>所有可提取内容在本地浏览器处理，无需上传第三方服务器。</footer>
+  </main>
+  <script src="vendor/jszip.min.js"></script>
+  <script type="module" src="src/sidepanel.js"></script>
+</body>
+</html>
